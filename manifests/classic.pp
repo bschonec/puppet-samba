@@ -57,6 +57,10 @@ class samba::classic(
   $joinou                         = undef,
   Optional[String] $default_realm = undef,
   Array $additional_realms        = [],
+  Enum['absent', 'present', 'installed'] $sambasmb_package_ensure          = 'installed',
+  Enum['absent', 'present', 'installed'] $sambawinbind_package_ensure      = 'installed',
+  Enum['stopped', 'running', 'false', 'true'] $sambawinbind_service_ensure = 'running',
+  Enum['false', 'true'] $sambawinbind_service_enable                       = 'running',
 ) inherits samba::params{
 
 
@@ -202,7 +206,8 @@ class samba::classic(
   }
 
   package{ 'SambaClassic':
-    ensure => 'installed',
+   # ensure => 'installed',
+    ensure => $sambasmb_package_ensure,
     name   => $samba::params::packagesambaclassic,
   }
 
@@ -215,11 +220,18 @@ class samba::classic(
     Package['SambaClassicWinBind'] -> Package['SambaClassic']
   }
 
+  # If $sambasmb_package_ensure = 'absent' then we must ensure that
+  # the service is stopped and disabled.  Otherwise, accept
+  # $sambasmb_package_ensure and $sambawinbind_service_enable as the 
+  # ensure and enable states.
   service{ 'SambaSmb':
-    ensure  => 'running',
+    ensure  => $sambawinbind_service_ensure,
     name    => $samba::params::servivesmb,
     require => [ Package['SambaClassic'], File['SambaOptsFile'] ],
-    enable  => true,
+    enable  => $sambasmb_package_ensure ? {
+      'absent' => false,
+      default  => $sambawinbind_service_enable,
+      }
   }
 
   if $manage_winbind {
